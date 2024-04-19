@@ -66,8 +66,8 @@ LSPUSH:
 	LIS	R3,8
 	LIL	R1,MALLOC	;allocate 8b
 	JSRS	R1,R1
-	CMPI	R3,0
-	BEQ	THROW
+	LOADCC	R3,R3
+	BZS	THROW
 	STORE	R9,R3,NODEVAL	;store the word in NODEVAL
 	LOAD	R5,R8,HPTR	;put hptr -
 	STORE	R5,R3,NODEPTR	;-into nodeptr
