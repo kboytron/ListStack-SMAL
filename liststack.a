@@ -85,6 +85,8 @@ LSPOP:
 	ADDSI	R2,ARSIZE
 
 	LOAD	R5,R3,HPTR	;put addr of head node in r5
+	CMPI	R5,0
+	BEQ	THROW
 	LOAD	R6,R5,NODEPTR	;put addr of head.next in r6
 	LOAD	R8,R5,NODEVAL	;put popped word in r8 for output
 	MOVE	R7,R3
@@ -98,4 +100,14 @@ LSPOP:
 	ADDSI	R2,-ARSIZE
 	LOAD	R8,R2,R8S
 	LOADS	PC,R2
-END
+
+THROW:
+	LIL	R3,STACKEXCEPT
+	LOADS	R1,R3		; e = stackexept
+	LOAD	R2,R1,EXOLD
+	STORES	R2,R3		; stackexept = e->exold
+	LOAD	R2,R1,EXAR	; stack-frame = e->exar
+	LOADS	PC,R1;EXHAND	; pc = e->exhand
+
+	END
+
