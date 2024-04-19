@@ -1,0 +1,118 @@
+	TITLE	"arraystack.a -- stacks implemented with an array"
+
+	USE	"hawk.h"
+	USE	"stdlib.h"
+	USE	"exceptions.h"
+
+	USE	"stack.h"	; the code here implements the stack interface
+
+; configuration constants
+STACKSIZE=	10	; stack size for this implementation, in words
+
+; each stack object is a structure with 2 fields:
+; All instances of stack have the following fields:
+;EMPTY	=	0	; pointer to the empty method, see stack.h
+;PUSH	=	4	; pointer to the push method, see stack.h
+;POP	=	8	; pointer to the pop method, see stack.h
+
+; additional fields defined for arraystack objects
+SP	=	12	; the stack pointer, address of first free word
+STACK	=	16	; first word of an array of stacksize words
+OBJSIZE	=	STACK + (STACKSIZE << 2)
+
+;==========
+	INT	NEWARRAYSTACK; construct a new stack object, see arraystack.h
+			; given   nothing
+			; returns R3 -- pointer to an initialized stack object
+			; wipes	out R3-R7
+; AR for NEWARRAYSTACK
+;RETAD	=	0
+ARSIZE	=	4
+NEWARRAYSTACK:
+	STORES	R1,R2
+	ADDSI	R2,ARSIZE
+				; -- first, allocate a new stack object
+	LIS	R3,OBJSIZE	; -- parameter
+	LIL	R1,MALLOC
+	JSRS	R1,R1		; retval = malloc( stacksize * 4 )
+
+				; -- second, initialize the new object
+				; -- start with the method pointers
+	LEA	R4,ASEMPTY
+	STORE	R4,R3,EMPTY	; retval->empty = asempty -- the empty method
+	LEA	R4,ASPUSH
+	STORE	R4,R3,PUSH	; retval->push = aspush -- the push method
+	LEA	R4,ASPOP
+	STORE	R4,R3,POP	; retval->pop = aspop -- the pop method
+
+				; -- finish by making this new stack empty
+	LEA	R4,R3,STACK
+	STORE	R4,R3,SP	; retval->sp = &(retval->stack)
+
+	ADDSI	R2,-ARSIZE
+	LOADS	PC,R2		; return retval
+
+;==========
+;		ASEMPTY ; test to see if a stack is empty
+ASEMPTY:		; given   R3 -- s, a stack to test
+			; returns R3 -- zero if not empty, nonzero if empty
+			; may use R4-R7
+	LEA	R4,R3,STACK	; -- &(s->stack)
+	LOAD	R5,R3,SP	; -- s->sp
+	SUB	R3,R4,R5	; temp = &(s->stack) - s->sp
+				; -- here, temp = 0 if empty, we want opposite
+	BZS	ASEZERO
+	LIS	R3,-1		; -- tricky code: if it was nonzero, make it -1
+ASEZERO:
+	NOT	R3		; retval = (temp == 0)
+
+	JUMPS	R1		; return retval
+	
+;==========
+;		ASPUSH	; push a word on the stack
+			; given   R3 -- s, stack to push on
+			;         R4 -- word to push
+			; returns nothing
+			; wipes	out R3-R7
+			; throws STACKEXCEPT if STACKSIZE exceeded
+ASPUSH:
+	LEA	R5,R3,SP	; -- address of stack->mysp
+	LOADS	R6,R5		; -- value of stack->mysp
+	LEA	R7,R3,OBJSIZE
+	CMP	R6,R7
+	BGEU	THROW		; if (s->mysp >= s->objsize) throw stackexcept
+	STORES	R4,R6		; *(s->mysp) = word to push
+	ADDSI	R6,4		; s->mysp ++
+	STORES	R6,R5		; -- put s->mysp back
+
+	JUMPS	R1		; return
+
+;==========
+;		ASPOP	; pop a word from the stack
+			; given   R3 -- s, stack to push on
+			; returns R3 -- a word popped from the stack
+			; wipes	out R4-R6
+			; throws STACKEXCEPT on pop from empty stack
+ASPOP:
+	LEA	R5,R3,SP	; -- address of stack->mysp
+	LOADS	R6,R5		; -- value of stack->mysp
+	LEA	R7,R3,STACK
+	CMP	R6,R7
+	BLEU	THROW		; if (s->mysp <= s->stack) throw stackexcept
+	ADDSI	R6,-4		; s->mysp --
+	LOADS	R3,R6		; retval = *(s->mysp)
+	STORES	R6,R5		; -- put s->mysp back
+
+	JUMPS	R1		; return retval
+
+;==========
+;  shared code to throw a stack exception
+THROW:
+	LIL	R3,STACKEXCEPT
+	LOADS	R1,R3		; e = stackexept
+	LOAD	R2,R1,EXOLD
+	STORES	R2,R3		; stackexept = e->exold
+	LOAD	R2,R1,EXAR	; stack-frame = e->exar
+	LOADS	PC,R1;EXHAND	; pc = e->exhand
+
+	END

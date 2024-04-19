@@ -1,0 +1,39 @@
+README FOR DEMO STACK ABSTRACTION WITH MULTIPLE POLYMORPHIC INSTANCES
+=====================================================================
+
+This project demonstrates a stack to show how big programs can be managed
+where the programs in question use polymorphic classes.
+
+The code has been augmented to use exceptions to report stack overflow and
+underflow.
+
+TO BUILD THE PROJECT
+--------------------
+
+The shell command `make demo` builds and runs a polymorphic stack demo program.
+All the demo does is output hello world, but it does so by pushing pieces on
+two different stacks and then popping and printing them.
+
+See `Makefile` for details on the relationships between the files included here
+
+See `.h` header files for the interface specifications for each stack class or
+subclass.
+
+FILES
+-----
+
+* `README` -- this file
+* `Makefile` -- input to `make` for building this code distribution
+* `main.a` -- a main program to demonstrate
+* `stack.h` -- interface for abstract stack class (no implementation)
+* `arraystack.h` -- interface for array stack subclass
+* `arraystack.a` -- implementation of array stack subclass
+* `liststack.h` -- implementation of linked list stack subclass
+* `liststack.a` -- interface for linked list stack subclass
+
+KNOWN BUGS
+----------
+
+The array stack constructor would be more useful if it took a parameter, the
+size of the stack to be constructed.  In this case, each different array
+stack would have a different capacity.

@@ -1,0 +1,293 @@
+	TITLE	"MP4 by Douglas Jones, recursion-free version"
+	; plots the trees using explicit stacks of what needs printing
+	; to plot a tree, pushes the coordinates of the center of the tree
+	; comptes the tree size by trying bigger and bigger till it won't fit
+
+	; NOTE:  There is no recursion here, it's all done with loops and stacks
+	; Code has been added so that, for a large screen, the heap overflows
+	; in order to force the stack implementation to throw an exception
+
+	; NOTE:  Code has been added to check that both stack overflow and
+	; stack underflow throw exceptions; the code deliberately nests
+	; try-catch blocks to make sure they nest correctly.
+
+	USE	"hawk.h"
+	USE	"stdio.h"
+	USE	"stdlib.h"
+	USE	"exceptions.h"
+	USE	"stack.h"
+	USE	"arraystack.h"
+	USE	"liststack.h"
+
+	INT	MAIN
+	S	MAIN
+
+; activation record for MAIN
+;RETAD	=	0
+EX1	=	4		; support outer try-catch block
+EX2	=	4 + EXSIZE	; inner try-catch block
+SVR13	=	EX2 + EXSIZE	; save locations for registers during try
+SVR14	=	SVR13 + 4
+SVR15	=	SVR14 + 4
+ARSIZE	=	SVR15 + 4
+
+MAIN:
+	STORES	R1,R2
+	ADDI	R2,R2,ARSIZE
+	EXINSTALL STACKEXCEPT,EX1-ARSIZE,MAINHAND
+				; try {
+
+				;   -- A, make some different kinds of stacks
+	LIL	R1,NEWARRAYSTACK
+	JSRS	R1,R1		;   -- stack for sizes of trees
+	MOVE	R13,R3		;   sizestack = newarraystack()
+	LIL	R1,NEWLISTSTACK
+	JSRS	R1,R1		;   -- stack for x coordinates
+	MOVE	R14,R3		;   xstack = newliststack()
+	LIL	R1,NEWLISTSTACK
+	JSRS	R1,R1		;   -- stack for y coordinates
+	MOVE	R15,R3		;   ystack = newliststack()
+	; here	R13 = sizestack
+	;     	R14 = xstack
+	;     	R15 = ystack	;   -- these stacks describe pending trees
+
+				;   -- B, make sure popping empty throws ex
+	STORE	R13,R2,SVR13
+	STORE	R14,R2,SVR14
+	STORE	R15,R2,SVR15	;   -- save registers lost if exception thrown
+	EXINSTALL STACKEXCEPT,EX2-ARSIZE,INNERHND
+				;   try {
+	MOVE	R3,R14		;     -- parameter xstack (a list stack)
+	LOAD	R1,R3,POP
+	JSRS	R1,R1
+	MOVE	R9,R3		;     (void)xstack->pop( xstack )
+	EXREMOVE STACKEXCEPT,EX2-ARSIZE
+	BR	INNERDONE
+INNERHND:			;   } catch stackexecpt {
+	LEA	R3,EMPTYOK
+	LIL	R1,PUTS
+	JSRS	R1,R1		;     puts( "pop empty throws exception" )
+INNERDONE:			;   }
+	LOAD	R13,R2,SVR13
+	LOAD	R14,R2,SVR14
+	LOAD	R15,R2,SVR15	;   -- restore registers saved above
+
+				;   -- C, use up most of the heap
+	LIL	R3,#FA80	;   -- param p = amount of heap to use
+	LIL	R1,MALLOC
+	JSRS	R1,R1
+	TESTR	R3
+	BZR	CRAMP		;   if (malloc( p ) == NULL) {
+	LEA	R3,HEAPFIL
+	LIL	R1,PUTS
+	JSRS	R1,R1		;     puts( "failed to cramp stack" )
+CRAMP:				;   }
+	
+				;   -- D, get tree size from screen size
+	LIL	R3,TERMINFO
+	LOAD	R4,R3,TERMCOLS	;   -- get termcols
+	LOAD	R5,R3,TERMROWS	;   -- get termrows
+
+				;   -- problem 1, what size fits?
+	LIS	R3,1		;   size = 1
+	; here	R3 = size	;   -- size is always a power of 2
+	;	R4 = termcols
+	;       R5 = termrows
+	;	R6 = height then width
+	;	R13,14,15 = stacks for size,x,y
+SIZELP:				;   for (;;) {
+	MOVESL	R6,R3,1
+	ADDSI	R6,-1		;     height = 2*size - 1
+	CMP	R5,R6
+	BLT	SIZEQT		;     if (termrows < height) break
+	SL	R6,1		;     width = 2*height
+	CMP	R4,R6
+	BLT	SIZEQT		;     if (termcols < width) break
+	SL	R3,1		;     size = size * 2
+	BR	SIZELP
+SIZEQT:				;   }
+	
+				;   -- we computed one size too large
+	SRU	R3,1		;   -- parameter size = size/2
+	SR	R4,1		;   -- parameter x = termcols/2
+	SR	R5,1		;   -- parameter y = termrows/2 - size + 1
+
+				;   -- E, schedule first tree to print
+	; here	R3 = size	;   -- size of the tree
+	;	R4 = termcols	;   -- x location of tree center
+	;       R5 = termrows	;   -- y location of gree center
+	;	R13,14,15 = stacks for size,x,y
+
+	MOVE	R8,R4
+	MOVE	R9,R5		;   -- move x and y temporarily
+	MOVE	R4,R3		;   -- parameter size
+	MOVE	R3,R13		;   -- parameter sizestack
+	LOAD	R1,R3,PUSH
+	JSRS	R1,R1		;   sizestack->push( sizestack, size )
+	MOVE	R4,R8		;   -- parameter x
+	MOVE	R3,R14		;   -- parameter xstack
+	LOAD	R1,R3,PUSH
+	JSRS	R1,R1		;   xstack->push( xstack, x )
+	MOVE	R4,R9		;   -- parameter y
+	MOVE	R3,R15		;   -- parameter ystack
+	LOAD	R1,R3,PUSH
+	JSRS	R1,R1		;   ystack->push( ystack, x )
+
+				;   -- F, plot trees till stack is empty
+PLOTLOOP:			;   for (;;) {
+	; here	R13 = sizestack
+	;       R14 = xstack
+	;       R15 = ystack
+	MOVE	R3,R13		;     -- parameter sizestack
+	LOAD	R1,R3,EMPTY
+	JSRS	R1,R1
+	TESTR	R3
+	BZR	PLOTQUIT	;     if (sizestack->empty(sizestack)) break
+
+	MOVE	R3,R14		;     -- parameter xstack
+	LOAD	R1,R3,EMPTY
+	JSRS	R1,R1
+	TESTR	R3
+	BZR	PLOTQUIT	;     if (xstack->empty( xstack )) break
+
+	MOVE	R3,R15		;     -- parameter ystack
+	LOAD	R1,R3,EMPTY
+	JSRS	R1,R1
+	TESTR	R3
+	BZR	PLOTQUIT	;     if (ystack->empty( ystack )) break
+
+				;     -- if any stack was empty we quit
+	MOVE	R3,R13		;     -- parameter sizestack
+	LOAD	R1,R3,POP
+	JSRS	R1,R1		; 
+	MOVE	R8,R3		;     size = sizestack->pop( sizestack )
+	MOVE	R3,R14		;     -- parameter xstack
+	LOAD	R1,R3,POP
+	JSRS	R1,R1
+	MOVE	R9,R3		;     x = xstack->pop( xstack )
+	MOVE	R3,R15		;     -- parameter ystack
+	LOAD	R1,R3,POP
+	JSRS	R1,R1
+	MOVE	R10,R3		;     y = ystack->pop( ystack )
+	; here	R8 = size
+	;     	R9 = x
+	;     	R10 = y		;     -- characteristics of one tree
+	;	R13,14,15 = stacks for size,x,y
+
+	TESTR	R8
+	BZS	NOTREE		;     if (size >= 1) {
+
+				;       -- push left subtree attributes
+	MOVE	R3,R13		;       -- parameter sizestack
+	MOVE	R4,R8		;
+	SR	R4,1		;       -- parameter size/2
+	LOAD	R1,R3,PUSH
+	JSRS	R1,R1		;       sizestack->push( sizestack, size/2 )
+
+	MOVE	R3,R14		;       -- parameter xstack
+	MOVE	R4,R9
+	SUB	R4,R4,R8	;       -- parameter x - size
+	LOAD	R1,R3,PUSH
+	JSRS	R1,R1		;       xstack->push( xstack, x - size )
+
+	MOVE	R3,R15		;       -- parameter ystack
+	MOVE	R4,R8
+	SR	R4,1
+	ADD	R4,R10,R4	;       -- parameter y + size/2
+	LOAD	R1,R3,PUSH
+	JSRS	R1,R1		;       ystack->push( ystack, y + size/2 )
+
+				;       -- push right subtree attributes
+	MOVE	R3,R13		;       -- parameter sizestack
+	MOVE	R4,R8
+	SR	R4,1		;       -- parameter size/2
+	LOAD	R1,R3,PUSH
+	JSRS	R1,R1		;       sizestack->push(sizestack,size/2)
+
+	MOVE	R3,R14		;       -- parameter xstack
+	MOVE	R4,R9
+	ADD	R4,R4,R8	;       -- parameter x + size
+	LOAD	R1,R3,PUSH
+	JSRS	R1,R1		;       xstack->push( xstack, x + size )
+
+	MOVE	R3,R15		;       -- parameter ystack
+	MOVE	R4,R8
+	SR	R4,1
+	ADD	R4,R10,R4	;       -- parameter y + size/2
+	LOAD	R1,R3,PUSH
+	JSRS	R1,R1		;       ystack->push( ystack, y + size/2 )
+
+PLOTBRANCH:			;       do { -- output size rows of /\
+	; here	R8 = size
+	;     	R9 = x
+	;     	R10 = y		;         -- characteristics of one tree
+	;	R13,14,15 = stacks for size,x,y
+	MOVE	R3,R9
+	SUB	R3,R3,R8	;         -- parameter x - size
+	MOVE	R4,R10		;         -- parameter y
+	LIL	R1,PUTAT
+	JSRS	R1,R1		;         putat( x - size, y )
+	LIS	R3,'/'		;         -- parameter
+	LIL	R1,PUTCHAR
+	JSRS	R1,R1		;         putchar( '/' )
+
+	MOVE	R3,R9
+	ADD	R3,R3,R8
+	ADDSI	R3,-1		;         -- parameter x + size - 1
+	MOVE	R4,R10		;         -- parameter y
+	LIL	R1,PUTAT
+	JSRS	R1,R1		;         putat( x + size - 1, y - 1 )
+	LIS	R3,'\'		;         -- parameter
+	LIL	R1,PUTCHAR
+	JSRS	R1,R1		;         putchar( '\' )
+
+	ADDSI	R10,-1		;         y = y - 1   -- move up
+	ADDSI	R8,-1		;         size = size - 1
+	BGT	PLOTBRANCH	;       } while (size > 0)
+NOTREE	=	PLOTLOOP	;     }
+	BR	PLOTLOOP	;   }
+PLOTQUIT:			;   -- assert, some stack was empty
+				;   -- test that they are all empty
+	MOVE	R3,R13		;   -- parameter sizestack
+	LOAD	R1,R3,EMPTY
+	JSRS	R1,R1
+	TESTR	R3
+	BZS	PLOTBUG 	;   if (!sizestack->empty(sizestack)
+
+	MOVE	R3,R14		;   -- parameter xstack
+	LOAD	R1,R3,EMPTY
+	JSRS	R1,R1
+	TESTR	R3
+	BZS	PLOTBUG		;   ||  !xstack->empty(xstack)
+
+	MOVE	R3,R15		;   -- parameter ystack
+	LOAD	R1,R3,EMPTY
+	JSRS	R1,R1
+	TESTR	R3
+	BZR	PLOTOK 		;   ||  !ystack->empty(xstack)) {
+PLOTBUG:
+	LEA	R3,STACKBUG
+	LIL	R1,PUTS
+	JSRS	R1,R1		;     puts( "stacks not all empty" )
+PLOTOK:				;   }
+	EXREMOVE STACKEXCEPT,EX1-ARSIZE
+	BR	ENDCATCH	
+MAINHAND:			; } catch stackexcept {
+	LEA	R3,STACKEX1
+	LIL	R1,PUTS
+	JSRS	R1,R1		;   puts( "stack exception" )
+
+ENDCATCH:			; }
+	ADDI	R2,R2,-ARSIZE
+	LOADS	PC,R2		; return
+
+EMPTYOK:
+	ASCII	"pop empty throws exception",0
+HEAPFIL:
+	ASCII	"failed to cramp heap",0
+STACKBUG:
+	ASCII	"stacks not all empty",0
+STACKEX1:
+	ASCII	"stack exception",0
+	
+	END

@@ -1,0 +1,596 @@
+# shell archive created by dwjones on Wed Apr 17 04:08:55 PM CDT 2024
+
+# To install this software on a UNIX compatable system (Linux or MacOS):
+#  1) create a directory (e.g. with the shell command mkdir project)
+#  2) change to that directory (e.g. with the command cd project),
+#  3) direct the remainder of this text to sh (e.g. sh < ../thisfile).
+# This will make sh create files in the new directory; it will do
+# nothing else (if you're paranoid, you should scan the following text
+# to verify this before you follow these directions).  Then read README
+# in the new directory for additional instructions.
+
+# On other systems, extract files from this file using a text editor.
+# Each file is bracketed between two lines of xxxx.
+# The first line of xxxx contains a cat command giving the file name.
+
+cat > README <<\xxxxxxxxxx
+README FOR DEMO STACK ABSTRACTION WITH MULTIPLE POLYMORPHIC INSTANCES
+=====================================================================
+
+This project demonstrates a stack to show how big programs can be managed
+where the programs in question use polymorphic classes.
+
+The code has been augmented to use exceptions to report stack overflow and
+underflow.
+
+TO BUILD THE PROJECT
+--------------------
+
+The shell command `make demo` builds and runs a polymorphic stack demo program.
+All the demo does is output hello world, but it does so by pushing pieces on
+two different stacks and then popping and printing them.
+
+See `Makefile` for details on the relationships between the files included here
+
+See `.h` header files for the interface specifications for each stack class or
+subclass.
+
+FILES
+-----
+
+* `README` -- this file
+* `Makefile` -- input to `make` for building this code distribution
+* `main.a` -- a main program to demonstrate
+* `stack.h` -- interface for abstract stack class (no implementation)
+* `arraystack.h` -- interface for array stack subclass
+* `arraystack.a` -- implementation of array stack subclass
+* `liststack.h` -- implementation of linked list stack subclass
+* `liststack.a` -- interface for linked list stack subclass
+
+KNOWN BUGS
+----------
+
+The array stack constructor would be more useful if it took a parameter, the
+size of the stack to be constructed.  In this case, each different array
+stack would have a different capacity.
+xxxxxxxxxx
+
+cat > Makefile <<\xxxxxxxxxx
+# Makefile for the project demonstrating a stack with multiple instances
+
+# Make uses sh, not bash, so we need to install the hawk and hawklink commands;
+# these definitions are lifted from the aliases in .bashrc
+# (If you try to use this makefile on a different system, you will need
+# to change the file names to where hawk and hawklink are installed there.)
+smal=~dwjones/bin/smal32 -P 45 -U ~dwjones/lib/hawk
+hawklink=~dwjones/bin/hawklink -d
+hawk=~dwjones/bin/hawk
+
+##########
+# primary make target
+
+stackdemo.o: main.o arraystack.o liststack.o
+	$(hawklink) -o stackdemo main.o arraystack.o liststack.o
+
+##########
+# secondary make targets
+
+# the main program uses two different stack abstractions
+main.o: main.a stack.h arraystack.h liststack.h
+	$(smal) main.a
+
+# class stack cannot be instantiated and has no code, so no make rules
+
+# class arraystack, a subclass of stack
+arraystack.o: arraystack.a stack.h arraystack.h
+	$(smal) arraystack.a
+
+# class liststack, a subclass of stack
+liststack.o: liststack.a stack.h liststack.h
+	$(smal) liststack.a
+
+##########
+# Make utilities
+
+# demonsrate the program
+demo: stackdemo.o
+	$(hawk)	stackdemo.o
+
+# remove object and listing files
+clean:
+	rm -f *.o *.l
+
+# create a shell archive of the project
+liststack=liststack.h liststack.a
+arraystack=arraystack.h arraystack.a
+stacks=stack.h $(arraystack) $(liststack)
+stackdemo.shar: README Makefile main.a $(stacks)
+	shar README Makefile main.a $(stacks) > stackdemo.shar
+xxxxxxxxxx
+
+cat > main.a <<\xxxxxxxxxx
+	TITLE	"MP4 by Douglas Jones, recursion-free version"
+	; plots the trees using explicit stacks of what needs printing
+	; to plot a tree, pushes the coordinates of the center of the tree
+	; comptes the tree size by trying bigger and bigger till it won't fit
+
+	; NOTE:  There is no recursion here, it's all done with loops and stacks
+	; Code has been added so that, for a large screen, the heap overflows
+	; in order to force the stack implementation to throw an exception
+
+	; NOTE:  Code has been added to check that both stack overflow and
+	; stack underflow throw exceptions; the code deliberately nests
+	; try-catch blocks to make sure they nest correctly.
+
+	USE	"hawk.h"
+	USE	"stdio.h"
+	USE	"stdlib.h"
+	USE	"exceptions.h"
+	USE	"stack.h"
+	USE	"arraystack.h"
+	USE	"liststack.h"
+
+	INT	MAIN
+	S	MAIN
+
+; activation record for MAIN
+;RETAD	=	0
+EX1	=	4		; support outer try-catch block
+EX2	=	4 + EXSIZE	; inner try-catch block
+SVR13	=	EX2 + EXSIZE	; save locations for registers during try
+SVR14	=	SVR13 + 4
+SVR15	=	SVR14 + 4
+ARSIZE	=	SVR15 + 4
+
+MAIN:
+	STORES	R1,R2
+	ADDI	R2,R2,ARSIZE
+	EXINSTALL STACKEXCEPT,EX1-ARSIZE,MAINHAND
+				; try {
+
+				;   -- A, make some different kinds of stacks
+	LIL	R1,NEWARRAYSTACK
+	JSRS	R1,R1		;   -- stack for sizes of trees
+	MOVE	R13,R3		;   sizestack = newarraystack()
+	LIL	R1,NEWLISTSTACK
+	JSRS	R1,R1		;   -- stack for x coordinates
+	MOVE	R14,R3		;   xstack = newliststack()
+	LIL	R1,NEWLISTSTACK
+	JSRS	R1,R1		;   -- stack for y coordinates
+	MOVE	R15,R3		;   ystack = newliststack()
+	; here	R13 = sizestack
+	;     	R14 = xstack
+	;     	R15 = ystack	;   -- these stacks describe pending trees
+
+				;   -- B, make sure popping empty throws ex
+	STORE	R13,R2,SVR13
+	STORE	R14,R2,SVR14
+	STORE	R15,R2,SVR15	;   -- save registers lost if exception thrown
+	EXINSTALL STACKEXCEPT,EX2-ARSIZE,INNERHND
+				;   try {
+	MOVE	R3,R14		;     -- parameter xstack (a list stack)
+	LOAD	R1,R3,POP
+	JSRS	R1,R1
+	MOVE	R9,R3		;     (void)xstack->pop( xstack )
+	EXREMOVE STACKEXCEPT,EX2-ARSIZE
+	BR	INNERDONE
+INNERHND:			;   } catch stackexecpt {
+	LEA	R3,EMPTYOK
+	LIL	R1,PUTS
+	JSRS	R1,R1		;     puts( "pop empty throws exception" )
+INNERDONE:			;   }
+	LOAD	R13,R2,SVR13
+	LOAD	R14,R2,SVR14
+	LOAD	R15,R2,SVR15	;   -- restore registers saved above
+
+				;   -- C, use up most of the heap
+	LIL	R3,#FA80	;   -- param p = amount of heap to use
+	LIL	R1,MALLOC
+	JSRS	R1,R1
+	TESTR	R3
+	BZR	CRAMP		;   if (malloc( p ) == NULL) {
+	LEA	R3,HEAPFIL
+	LIL	R1,PUTS
+	JSRS	R1,R1		;     puts( "failed to cramp stack" )
+CRAMP:				;   }
+	
+				;   -- D, get tree size from screen size
+	LIL	R3,TERMINFO
+	LOAD	R4,R3,TERMCOLS	;   -- get termcols
+	LOAD	R5,R3,TERMROWS	;   -- get termrows
+
+				;   -- problem 1, what size fits?
+	LIS	R3,1		;   size = 1
+	; here	R3 = size	;   -- size is always a power of 2
+	;	R4 = termcols
+	;       R5 = termrows
+	;	R6 = height then width
+	;	R13,14,15 = stacks for size,x,y
+SIZELP:				;   for (;;) {
+	MOVESL	R6,R3,1
+	ADDSI	R6,-1		;     height = 2*size - 1
+	CMP	R5,R6
+	BLT	SIZEQT		;     if (termrows < height) break
+	SL	R6,1		;     width = 2*height
+	CMP	R4,R6
+	BLT	SIZEQT		;     if (termcols < width) break
+	SL	R3,1		;     size = size * 2
+	BR	SIZELP
+SIZEQT:				;   }
+	
+				;   -- we computed one size too large
+	SRU	R3,1		;   -- parameter size = size/2
+	SR	R4,1		;   -- parameter x = termcols/2
+	SR	R5,1		;   -- parameter y = termrows/2 - size + 1
+
+				;   -- E, schedule first tree to print
+	; here	R3 = size	;   -- size of the tree
+	;	R4 = termcols	;   -- x location of tree center
+	;       R5 = termrows	;   -- y location of gree center
+	;	R13,14,15 = stacks for size,x,y
+
+	MOVE	R8,R4
+	MOVE	R9,R5		;   -- move x and y temporarily
+	MOVE	R4,R3		;   -- parameter size
+	MOVE	R3,R13		;   -- parameter sizestack
+	LOAD	R1,R3,PUSH
+	JSRS	R1,R1		;   sizestack->push( sizestack, size )
+	MOVE	R4,R8		;   -- parameter x
+	MOVE	R3,R14		;   -- parameter xstack
+	LOAD	R1,R3,PUSH
+	JSRS	R1,R1		;   xstack->push( xstack, x )
+	MOVE	R4,R9		;   -- parameter y
+	MOVE	R3,R15		;   -- parameter ystack
+	LOAD	R1,R3,PUSH
+	JSRS	R1,R1		;   ystack->push( ystack, x )
+
+				;   -- F, plot trees till stack is empty
+PLOTLOOP:			;   for (;;) {
+	; here	R13 = sizestack
+	;       R14 = xstack
+	;       R15 = ystack
+	MOVE	R3,R13		;     -- parameter sizestack
+	LOAD	R1,R3,EMPTY
+	JSRS	R1,R1
+	TESTR	R3
+	BZR	PLOTQUIT	;     if (sizestack->empty(sizestack)) break
+
+	MOVE	R3,R14		;     -- parameter xstack
+	LOAD	R1,R3,EMPTY
+	JSRS	R1,R1
+	TESTR	R3
+	BZR	PLOTQUIT	;     if (xstack->empty( xstack )) break
+
+	MOVE	R3,R15		;     -- parameter ystack
+	LOAD	R1,R3,EMPTY
+	JSRS	R1,R1
+	TESTR	R3
+	BZR	PLOTQUIT	;     if (ystack->empty( ystack )) break
+
+				;     -- if any stack was empty we quit
+	MOVE	R3,R13		;     -- parameter sizestack
+	LOAD	R1,R3,POP
+	JSRS	R1,R1		; 
+	MOVE	R8,R3		;     size = sizestack->pop( sizestack )
+	MOVE	R3,R14		;     -- parameter xstack
+	LOAD	R1,R3,POP
+	JSRS	R1,R1
+	MOVE	R9,R3		;     x = xstack->pop( xstack )
+	MOVE	R3,R15		;     -- parameter ystack
+	LOAD	R1,R3,POP
+	JSRS	R1,R1
+	MOVE	R10,R3		;     y = ystack->pop( ystack )
+	; here	R8 = size
+	;     	R9 = x
+	;     	R10 = y		;     -- characteristics of one tree
+	;	R13,14,15 = stacks for size,x,y
+
+	TESTR	R8
+	BZS	NOTREE		;     if (size >= 1) {
+
+				;       -- push left subtree attributes
+	MOVE	R3,R13		;       -- parameter sizestack
+	MOVE	R4,R8		;
+	SR	R4,1		;       -- parameter size/2
+	LOAD	R1,R3,PUSH
+	JSRS	R1,R1		;       sizestack->push( sizestack, size/2 )
+
+	MOVE	R3,R14		;       -- parameter xstack
+	MOVE	R4,R9
+	SUB	R4,R4,R8	;       -- parameter x - size
+	LOAD	R1,R3,PUSH
+	JSRS	R1,R1		;       xstack->push( xstack, x - size )
+
+	MOVE	R3,R15		;       -- parameter ystack
+	MOVE	R4,R8
+	SR	R4,1
+	ADD	R4,R10,R4	;       -- parameter y + size/2
+	LOAD	R1,R3,PUSH
+	JSRS	R1,R1		;       ystack->push( ystack, y + size/2 )
+
+				;       -- push right subtree attributes
+	MOVE	R3,R13		;       -- parameter sizestack
+	MOVE	R4,R8
+	SR	R4,1		;       -- parameter size/2
+	LOAD	R1,R3,PUSH
+	JSRS	R1,R1		;       sizestack->push(sizestack,size/2)
+
+	MOVE	R3,R14		;       -- parameter xstack
+	MOVE	R4,R9
+	ADD	R4,R4,R8	;       -- parameter x + size
+	LOAD	R1,R3,PUSH
+	JSRS	R1,R1		;       xstack->push( xstack, x + size )
+
+	MOVE	R3,R15		;       -- parameter ystack
+	MOVE	R4,R8
+	SR	R4,1
+	ADD	R4,R10,R4	;       -- parameter y + size/2
+	LOAD	R1,R3,PUSH
+	JSRS	R1,R1		;       ystack->push( ystack, y + size/2 )
+
+PLOTBRANCH:			;       do { -- output size rows of /\
+	; here	R8 = size
+	;     	R9 = x
+	;     	R10 = y		;         -- characteristics of one tree
+	;	R13,14,15 = stacks for size,x,y
+	MOVE	R3,R9
+	SUB	R3,R3,R8	;         -- parameter x - size
+	MOVE	R4,R10		;         -- parameter y
+	LIL	R1,PUTAT
+	JSRS	R1,R1		;         putat( x - size, y )
+	LIS	R3,'/'		;         -- parameter
+	LIL	R1,PUTCHAR
+	JSRS	R1,R1		;         putchar( '/' )
+
+	MOVE	R3,R9
+	ADD	R3,R3,R8
+	ADDSI	R3,-1		;         -- parameter x + size - 1
+	MOVE	R4,R10		;         -- parameter y
+	LIL	R1,PUTAT
+	JSRS	R1,R1		;         putat( x + size - 1, y - 1 )
+	LIS	R3,'\'		;         -- parameter
+	LIL	R1,PUTCHAR
+	JSRS	R1,R1		;         putchar( '\' )
+
+	ADDSI	R10,-1		;         y = y - 1   -- move up
+	ADDSI	R8,-1		;         size = size - 1
+	BGT	PLOTBRANCH	;       } while (size > 0)
+NOTREE	=	PLOTLOOP	;     }
+	BR	PLOTLOOP	;   }
+PLOTQUIT:			;   -- assert, some stack was empty
+				;   -- test that they are all empty
+	MOVE	R3,R13		;   -- parameter sizestack
+	LOAD	R1,R3,EMPTY
+	JSRS	R1,R1
+	TESTR	R3
+	BZS	PLOTBUG 	;   if (!sizestack->empty(sizestack)
+
+	MOVE	R3,R14		;   -- parameter xstack
+	LOAD	R1,R3,EMPTY
+	JSRS	R1,R1
+	TESTR	R3
+	BZS	PLOTBUG		;   ||  !xstack->empty(xstack)
+
+	MOVE	R3,R15		;   -- parameter ystack
+	LOAD	R1,R3,EMPTY
+	JSRS	R1,R1
+	TESTR	R3
+	BZR	PLOTOK 		;   ||  !ystack->empty(xstack)) {
+PLOTBUG:
+	LEA	R3,STACKBUG
+	LIL	R1,PUTS
+	JSRS	R1,R1		;     puts( "stacks not all empty" )
+PLOTOK:				;   }
+	EXREMOVE STACKEXCEPT,EX1-ARSIZE
+	BR	ENDCATCH	
+MAINHAND:			; } catch stackexcept {
+	LEA	R3,STACKEX1
+	LIL	R1,PUTS
+	JSRS	R1,R1		;   puts( "stack exception" )
+
+ENDCATCH:			; }
+	ADDI	R2,R2,-ARSIZE
+	LOADS	PC,R2		; return
+
+EMPTYOK:
+	ASCII	"pop empty throws exception",0
+HEAPFIL:
+	ASCII	"failed to cramp heap",0
+STACKBUG:
+	ASCII	"stacks not all empty",0
+STACKEX1:
+	ASCII	"stack exception",0
+	
+	END
+xxxxxxxxxx
+
+cat > stack.h <<\xxxxxxxxxx
+; stack.h
+; an abstract class -- that is, it cannot be instantiated.
+; subclasses of stack each will provide a constructor.
+			; see the subclass .h file for documentation
+
+	COMMON	STACKEXCEPT,4
+
+; stackexcept is an exception pointer, see exceptions.h
+
+; All instances of stack have the following fields:
+EMPTY	=	0	; pointer to the empty method of this stack
+			; given   nothing
+			; returns R3 -- zero if not empty, nonzero if empty
+			; may use R4-R7
+
+PUSH	=	4	; pointer to the pop method of this stack
+			; given   R3 -- stack to push on
+			;         R4 -- word to push
+			; returns nothing
+			; may use R3-R7
+			; throws STACKEXCEPT if push is impossible
+			;         eg, if memory exhausted
+
+POP	=	8	; pointer to the pop method of this stack
+			; given   R3 -- stack to push on
+			; returns R3 -- a word popped from the stack
+			; may use R4-R7
+			; throws STACKEXCEPT on pop from empty stack
+
+; each subclass may define other fields
+; the total size of a stack object depends on which subclass it comes from
+xxxxxxxxxx
+
+cat > arraystack.h <<\xxxxxxxxxx
+; arraystack.h
+; an implementation of class stack using an array with a stack pointer
+; each subclass of stack provides a constructor.
+
+	EXT	NEWARRAYSTACK
+			; given   nothing
+			; returns R3 -- pointer to a new array stack instance
+			; may use R4-R7
+
+; the remainder of the interface definition is found in stack.h
+; nothing is revealed here about the internal details of the implementation
+xxxxxxxxxx
+
+cat > arraystack.a <<\xxxxxxxxxx
+	TITLE	"arraystack.a -- stacks implemented with an array"
+
+	USE	"hawk.h"
+	USE	"stdlib.h"
+	USE	"exceptions.h"
+
+	USE	"stack.h"	; the code here implements the stack interface
+
+; configuration constants
+STACKSIZE=	10	; stack size for this implementation, in words
+
+; each stack object is a structure with 2 fields:
+; All instances of stack have the following fields:
+;EMPTY	=	0	; pointer to the empty method, see stack.h
+;PUSH	=	4	; pointer to the push method, see stack.h
+;POP	=	8	; pointer to the pop method, see stack.h
+
+; additional fields defined for arraystack objects
+SP	=	12	; the stack pointer, address of first free word
+STACK	=	16	; first word of an array of stacksize words
+OBJSIZE	=	STACK + (STACKSIZE << 2)
+
+;==========
+	INT	NEWARRAYSTACK; construct a new stack object, see arraystack.h
+			; given   nothing
+			; returns R3 -- pointer to an initialized stack object
+			; wipes	out R3-R7
+; AR for NEWARRAYSTACK
+;RETAD	=	0
+ARSIZE	=	4
+NEWARRAYSTACK:
+	STORES	R1,R2
+	ADDSI	R2,ARSIZE
+				; -- first, allocate a new stack object
+	LIS	R3,OBJSIZE	; -- parameter
+	LIL	R1,MALLOC
+	JSRS	R1,R1		; retval = malloc( stacksize * 4 )
+
+				; -- second, initialize the new object
+				; -- start with the method pointers
+	LEA	R4,ASEMPTY
+	STORE	R4,R3,EMPTY	; retval->empty = asempty -- the empty method
+	LEA	R4,ASPUSH
+	STORE	R4,R3,PUSH	; retval->push = aspush -- the push method
+	LEA	R4,ASPOP
+	STORE	R4,R3,POP	; retval->pop = aspop -- the pop method
+
+				; -- finish by making this new stack empty
+	LEA	R4,R3,STACK
+	STORE	R4,R3,SP	; retval->sp = &(retval->stack)
+
+	ADDSI	R2,-ARSIZE
+	LOADS	PC,R2		; return retval
+
+;==========
+;		ASEMPTY ; test to see if a stack is empty
+ASEMPTY:		; given   R3 -- s, a stack to test
+			; returns R3 -- zero if not empty, nonzero if empty
+			; may use R4-R7
+	LEA	R4,R3,STACK	; -- &(s->stack)
+	LOAD	R5,R3,SP	; -- s->sp
+	SUB	R3,R4,R5	; temp = &(s->stack) - s->sp
+				; -- here, temp = 0 if empty, we want opposite
+	BZS	ASEZERO
+	LIS	R3,-1		; -- tricky code: if it was nonzero, make it -1
+ASEZERO:
+	NOT	R3		; retval = (temp == 0)
+
+	JUMPS	R1		; return retval
+	
+;==========
+;		ASPUSH	; push a word on the stack
+			; given   R3 -- s, stack to push on
+			;         R4 -- word to push
+			; returns nothing
+			; wipes	out R3-R7
+			; throws STACKEXCEPT if STACKSIZE exceeded
+ASPUSH:
+	LEA	R5,R3,SP	; -- address of stack->mysp
+	LOADS	R6,R5		; -- value of stack->mysp
+	LEA	R7,R3,OBJSIZE
+	CMP	R6,R7
+	BGEU	THROW		; if (s->mysp >= s->objsize) throw stackexcept
+	STORES	R4,R6		; *(s->mysp) = word to push
+	ADDSI	R6,4		; s->mysp ++
+	STORES	R6,R5		; -- put s->mysp back
+
+	JUMPS	R1		; return
+
+;==========
+;		ASPOP	; pop a word from the stack
+			; given   R3 -- s, stack to push on
+			; returns R3 -- a word popped from the stack
+			; wipes	out R4-R6
+			; throws STACKEXCEPT on pop from empty stack
+ASPOP:
+	LEA	R5,R3,SP	; -- address of stack->mysp
+	LOADS	R6,R5		; -- value of stack->mysp
+	LEA	R7,R3,STACK
+	CMP	R6,R7
+	BLEU	THROW		; if (s->mysp <= s->stack) throw stackexcept
+	ADDSI	R6,-4		; s->mysp --
+	LOADS	R3,R6		; retval = *(s->mysp)
+	STORES	R6,R5		; -- put s->mysp back
+
+	JUMPS	R1		; return retval
+
+;==========
+;  shared code to throw a stack exception
+THROW:
+	LIL	R3,STACKEXCEPT
+	LOADS	R1,R3		; e = stackexept
+	LOAD	R2,R1,EXOLD
+	STORES	R2,R3		; stackexept = e->exold
+	LOAD	R2,R1,EXAR	; stack-frame = e->exar
+	LOADS	PC,R1;EXHAND	; pc = e->exhand
+
+	END
+xxxxxxxxxx
+
+cat > liststack.h <<\xxxxxxxxxx
+; liststack.h
+; an implementation of class stack using a linked list 
+; each subclass of stack provides a constructor.
+
+	EXT	NEWLISTSTACK
+			; given   nothing
+			; returns R3 -- pointer to a new array stack instance
+			; may use R4-R7
+
+; the remainder of the interface definition is found in stack.h
+; nothing is revealed here about the internal details of the implementation
+xxxxxxxxxx
+
+cat > liststack.a <<\xxxxxxxxxx
+	TITLE	"liststack.a by YOUR NAME HERE -- linked list stacks"
+
+; your code here!
+
+	END
+xxxxxxxxxx
