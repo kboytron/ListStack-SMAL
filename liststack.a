@@ -3,7 +3,7 @@
 	USE	"hawk.h"
 	USE	"stdlib.h"
 	USE	"stack.h"
-	USE	"execeptions.h"
+	USE	"exceptions.h"
 
 ;EMPTY	=	0
 ;PUSH	=	4
