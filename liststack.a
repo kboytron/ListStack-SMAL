@@ -1,5 +1,101 @@
-	TITLE	"liststack.a by YOUR NAME HERE -- linked list stacks"
+	TITLE	"liststack.a by Karan Singh -- linked list stacks"
 
-; your code here!
+	USE	"hawk.h"
+	USE	"stdlib.h"
+	USE	"stack.h"
 
-	END
+;EMPTY	=	0
+;PUSH	=	4
+;POP	=	8
+HPTR	=	12
+
+	INT	NEWLISTSTACK
+
+RETAD	=	0
+ARSIZE	=	8
+NEWLISTSTACK:
+	STORES	R1,R2
+	ADDSI	R2,ARSIZE
+
+	LIL	R3,16		;malloc 16 bytes for the
+	LIL	R1,MALLOC	;stack methods
+	JSRS	R1,R1
+
+	LEA	R4,LSEMPTY
+	STORE	R4,R3,EMPTY
+
+	LEA	R4,LSPUSH	;construct the methods
+	STORE	R4,R3,PUSH
+	LEA	R4,LSPOP
+	STORE	R4,R3,POP
+
+	LIS	R4,0
+	STORE	R4,R3,HPTR	;init hptr to 0
+
+
+	ADDSI	R2,-ARSIZE
+	LOADS	PC,R2
+
+LSEMPTY:
+	LOADCC	R3,R3,HPTR	;if hptr == null, it is empty
+	BZS	ISEMPTY
+
+	LIS	R3,-1		;if hptr != null, return -1
+ISEMPTY:
+	NOT	R3
+	JUMPS	R1
+
+
+NODEVAL	=	0
+NODEPTR	=	4
+
+RETAD	=	0
+R8S	=	4
+R9S	=	8
+ARSIZE	=	12
+LSPUSH:
+	STORES	R1,R2
+	STORE	R8,R2,R8S
+	STORE	R9,R2,R9S
+	ADDI	R2,R2,ARSIZE
+
+	MOVE	R8,R3		;R3-STACK TO PUSH ON
+	MOVE	R9,R4		;R4-WORD
+
+	LIS	R3,8
+	LIL	R1,MALLOC	;allocate 8b
+	JSRS	R1,R1
+
+	STORE	R9,R3,NODEVAL	;store the word in NODEVAL
+	LOAD	R5,R8,HPTR	;put hptr -
+	STORE	R5,R3,NODEPTR	;-into nodeptr
+	STORE	R3,R8,HPTR	;point hptr to newnode
+
+	ADDI	R2,R2,-ARSIZE
+	LOAD	R8,R2,R8S	;restore r8,r9
+	LOAD	R9,R2,R9S
+	LOADS	PC,R2
+
+RETAD	=	0
+R8S	=	4
+ARSIZE	=	8
+LSPOP:
+	STORES	R1,R2
+	STORE	R8,R2,R8S
+	ADDSI	R2,ARSIZE
+
+	LOAD	R5,R3,HPTR	;put addr of head node in r5
+	LOAD	R6,R5,NODEPTR	;put addr of head.next in r6
+	LOAD	R8,R5,NODEVAL	;put popped word in r8 for output
+	MOVE	R7,R3
+	MOVE	R3,R5		;move addr of head node in r3
+	LIL	R1,FREE		;free memory from addr in r3
+	JSRS	R1,R1
+
+	STORE	R6,R7,HPTR	;hptr = head.next
+	MOVE	R3,R8		;move word to r3 for return
+
+	ADDSI	R2,-ARSIZE
+	LOAD	R8,R2,R8S
+	LOADS	PC,R2
+END
