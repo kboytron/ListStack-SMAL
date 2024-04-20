@@ -12,7 +12,7 @@ hawk=~dwjones/bin/hawk
 # primary make target
 
 stackdemo.o: main.o arraystack.o liststack.o
-	$(hawklink) -o stackdemo main.o arraystack.o liststack.o
+	$(hawklink) -o stackdemo liststack.o main.o arraystack.o
 
 ##########
 # secondary make targets
