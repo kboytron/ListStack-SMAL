@@ -1,4 +1,4 @@
-SMAL32 (rev  8/19)              liststack.a by Karan Singh   00:03:17  Page  1
+SMAL32 (rev  8/19)              liststack.a by Karan Singh   18:09:58  Page  1
                                                              Sat Apr 20 2024
 
                                  1          TITLE   "liststack.a by Karan Singh -- linked list stacks"
@@ -42,7 +42,7 @@
                                 39  
                                 40  LSEMPTY:
 +00000030: F3  43  000C         41          LOADCC  R3,R3,HPTR      ;if hptr == null, it is empty
-SMAL32 (rev  8/19)              liststack.a by Karan Singh   00:03:17  Page  2
+SMAL32 (rev  8/19)              liststack.a by Karan Singh   18:09:58  Page  2
                                                              Sat Apr 20 2024
 
 +00000034: 02  01               42          BZS     ISEMPTY
@@ -86,7 +86,7 @@
 +00000072: F9  52  0008         80          LOAD    R9,R2,R9S
 +00000076: F0  D2               81          LOADS   PC,R2
                                 82  
-SMAL32 (rev  8/19)              liststack.a by Karan Singh   00:03:17  Page  3
+SMAL32 (rev  8/19)              liststack.a by Karan Singh   18:09:58  Page  3
                                                              Sat Apr 20 2024
 
                                 83  RETAD   =       0
