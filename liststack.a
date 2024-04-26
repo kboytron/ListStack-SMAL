@@ -49,9 +49,9 @@ ISEMPTY:
 
 
 NODEVAL	=	0		; data of node in list
-NODEPTR	=	4		; pointer to next node 
-NODESIZE=	8		; together these make node obj	
-				; |nodeval|nodeptr|->	
+NODEPTR	=	4		; pointer to next node
+NODESIZE=	8		; together these make node obj
+				; |nodeval|nodeptr|->
 RETAD	=	0
 R8S	=	4
 R9S	=	8
@@ -118,4 +118,3 @@ THROW:
 	LOADS	PC,R1;EXHAND	; pc = e->exhand
 
 	END
-
