@@ -8,7 +8,7 @@
 ;EMPTY	=	0	;pointer to empty method in stack.h
 ;PUSH	=	4	;pointer to push method in stack.h
 ;POP	=	8	;pointer to pop method in stack.h
-HPTR	=	12	;
+HEADPTR	=	12	;
 
 	INT	NEWLISTSTACK
 
@@ -31,14 +31,14 @@ NEWLISTSTACK:
 	STORE	R4,R3,POP
 
 	LIS	R4,0
-	STORE	R4,R3,HPTR	;init hptr to 0
+	STORE	R4,R3,HEADPTR	;init hptr to 0
 
 
 	ADDSI	R2,-ARSIZE
 	LOADS	PC,R2
 
 LSEMPTY:
-	LOADCC	R3,R3,HPTR	;if hptr == null, it is empty
+	LOADCC	R3,R3,HEADPTR	;if hptr == null, it is empty
 	BZS	ISEMPTY
 
 	LIS	R3,-1		;if hptr != null, return -1
@@ -71,9 +71,9 @@ LSPUSH:
 	BZS	THROW		;throw exception
 
 	STORE	R9,R3,NODEVAL	;store the word in NODEVAL
-	LOAD	R5,R8,HPTR	;put hptr -
+	LOAD	R5,R8,HEADPTR	;put hptr -
 	STORE	R5,R3,NODEPTR	;-into nodeptr
-	STORE	R3,R8,HPTR	;point hptr to newnode
+	STORE	R3,R8,HEADPTR	;point hptr to newnode
 
 	ADDI	R2,R2,-ARSIZE
 	LOAD	R8,R2,R8S	;restore r8,r9
@@ -88,7 +88,7 @@ LSPOP:
 	STORE	R8,R2,R8S
 	ADDSI	R2,ARSIZE
 
-	LOAD	R5,R3,HPTR	;put addr of head node in r5
+	LOAD	R5,R3,HEADPTR	;put addr of head node in r5
 
 	CMPI	R5,0		;if hptr == null
 	BEQ	THROW		;throw exception
@@ -100,7 +100,7 @@ LSPOP:
 	LIL	R1,FREE		;free memory from addr in r3
 	JSRS	R1,R1
 
-	STORE	R6,R7,HPTR	;hptr = head.next
+	STORE	R6,R7,HEADPTR	;hptr = head.next
 	MOVE	R3,R8		;move word to r3 for return
 
 	ADDSI	R2,-ARSIZE
