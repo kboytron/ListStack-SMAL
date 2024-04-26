@@ -8,18 +8,19 @@
 ;EMPTY	=	0	;pointer to empty method in stack.h
 ;PUSH	=	4	;pointer to push method in stack.h
 ;POP	=	8	;pointer to pop method in stack.h
-HEADPTR	=	12	;
+HEADPTR	=	12	;pointer to the head node in the stack
+LSSIZE	=	16	;size of liststack object in bytes
 
 	INT	NEWLISTSTACK
 
 RETAD	=	0
-ARSIZE	=	8
+ARSIZE	=	4
 NEWLISTSTACK:
 	STORES	R1,R2
 	ADDSI	R2,ARSIZE
 
-	LIL	R3,16		;malloc 16 bytes for the
-	LIL	R1,MALLOC	;stack methods
+	LIL	R3,LSSIZE	;malloc space for the
+	LIL	R1,MALLOC	;liststack object
 	JSRS	R1,R1
 
 	LEA	R4,LSEMPTY
@@ -47,9 +48,10 @@ ISEMPTY:
 	JUMPS	R1
 
 
-NODEVAL	=	0
-NODEPTR	=	4
-
+NODEVAL	=	0		; data of node in list
+NODEPTR	=	4		; pointer to next node 
+NODESIZE=	8		; together these make node obj	
+				; |nodeval|nodeptr|->	
 RETAD	=	0
 R8S	=	4
 R9S	=	8
