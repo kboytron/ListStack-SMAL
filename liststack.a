@@ -5,10 +5,10 @@
 	USE	"stack.h"
 	USE	"exceptions.h"
 
-;EMPTY	=	0
-;PUSH	=	4
-;POP	=	8
-HPTR	=	12
+;EMPTY	=	0	;pointer to empty method in stack.h
+;PUSH	=	4	;pointer to push method in stack.h
+;POP	=	8	;pointer to pop method in stack.h
+HPTR	=	12	;
 
 	INT	NEWLISTSTACK
 
@@ -67,8 +67,8 @@ LSPUSH:
 	LIL	R1,MALLOC	;allocate 8b
 	JSRS	R1,R1
 
-	TESTR	R3
-	BZS	THROW
+	TESTR	R3		;if malloc fails
+	BZS	THROW		;throw exception
 
 	STORE	R9,R3,NODEVAL	;store the word in NODEVAL
 	LOAD	R5,R8,HPTR	;put hptr -
@@ -90,8 +90,8 @@ LSPOP:
 
 	LOAD	R5,R3,HPTR	;put addr of head node in r5
 
-	CMPI	R5,0
-	BEQ	THROW
+	CMPI	R5,0		;if hptr == null
+	BEQ	THROW		;throw exception
 
 	LOAD	R6,R5,NODEPTR	;put addr of head.next in r6
 	LOAD	R8,R5,NODEVAL	;put popped word in r8 for output
