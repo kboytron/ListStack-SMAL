@@ -1,5 +1,4 @@
 # ListStack-SMAL
-================
 
 This project involves the implementation of a stack data structure using linked lists in **SMAL**, an assembly language designed for the **Hawk CPU architecture** by Douglas Jones. This project was completed as part of the **CS:2630 Computer Organization** course at the **University of Iowa** in the **Spring 2024** semester. It leverages dynamic memory management with `MALLOC` and `FREE`, while incorporating exception handling for stack overflow and underflow conditions.
 
